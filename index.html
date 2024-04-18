@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Basic Doodle Jump HTML Game</title>
+ <meta charset="UTF-8">
+ <style>
+ html, body {
+ height: 100%;
+ margin: 0;
+ background-image: url('https://catherineasquithgallery.com/uploads/posts/2021-02/1612739810_1-p-fon-salatovo-goluboi-1.jpg');
+ background-size: cover;
+ overflow-x: hidden; /* Убираем горизонтальный скролл */
+ }
+
+ body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f0f0f0; /* Цвет фона */
+}
+
+ canvas {
+ border: 3px solid rgba(0, 0, 0, 0.776);
+ box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+ }
+
+ .game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+    color: black;
+    background-color: rgba(255, 255, 255, 0.7); /* Цвет фона с прозрачностью */
+    padding: 20px;
+    border-radius: 10px; /* Закругляем углы */
+ }
+
+ .restart-button {
+    display: block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+ }
+ </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="game-over" id="gameOver" style="display: none;">
+    Вы проиграли! Ничего страшного.<br>
+    <button class="restart-button" onclick="restartGame()">Начать заново</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const context = canvas.getContext('2d');
+
+// Set canvas dimensions
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+// width and height of each platform and where platforms start
+const platformWidth = 100;
+const platformHeight = 20;
+const platformStart = canvas.height - 50;
+
+// player physics
+const gravity = 0.3;
+const drag = 0.1;
+const bounceVelocity = -20;
+const jumpVelocity = -30;
+const acceleration = 0.2;
+
+// minimum and maximum vertical space between each platform
+let minPlatformSpace = 150;
+let maxPlatformSpace = 200;
+
+// information about each platform. the first platform starts in the
+// bottom middle of the screen
+let platforms = [{
+ x: canvas.width / 2 - platformWidth / 2,
+ y: platformStart
+}];
+
+// Words that can appear on platforms
+const words = ['Хорошего дня!', 'Вы лучшая!', 'Счастливого дня!', 'Удачи!', 'Вы прекрасны!','Вы расцветаете!', 'Всё получится!', 'С днём рождения!', 'Любви Вам', 'спасибо за дочь'];
+
+// get a random word from the array
+function randomWord() {
+    return words[Math.floor(Math.random() * words.length)];
+}
+
+// get a random number between the min (inclusive) and max (exclusive)
+function random(min, max) {
+ return Math.random() * (max - min) + min;
+}
+
+// fill the initial screen with platforms or words
+let y = platformStart;
+while (y > 0) {
+    let platformOrWord = Math.random() > 0.5 ? 'platform' : 'word';
+    if (platformOrWord === 'platform') {
+        platforms.push({
+            x: random(25, canvas.width - 25 - platformWidth),
+            y
+        });
+    } else {
+        platforms.push({
+            x: random(25, canvas.width - 25 - platformWidth),
+            y,
+            word: randomWord() // random word
+        });
+    }
+    y -= platformHeight + random(minPlatformSpace, maxPlatformSpace);
+}
+
+// the doodle jumper
+const doodle = {
+ width: 40,
+ height: 60,
+ x: canvas.width / 2 - 20,
+ y: platformStart - 60,
+
+ // velocity
+ dx: 0,
+ dy: 0
+};
+
+// keep track of player direction and actions
+let playerDir = 0;
+let keydown = false;
+let prevDoodleY = doodle.y;
+
+// game loop
+function loop() {
+ requestAnimationFrame(loop);
+ context.clearRect(0,0,canvas.width,canvas.height);
+
+ // apply gravity to doodle
+ doodle.dy += gravity;
+
+ // if doodle reaches the middle of the screen, move the platforms down
+ // instead of doodle up to make it look like doodle is going up
+ if (doodle.y < canvas.height / 2 && doodle.dy < 0) {
+ platforms.forEach(function(item) {
+ item.y += -doodle.dy;
+ });
+
+ // add more platforms to the top of the screen as doodle moves up
+ while (platforms[platforms.length - 1].y > 0) {
+ let platformOrWord = Math.random() > 0.5 ? 'platform' : 'word';
+ if (platformOrWord === 'platform') {
+ platforms.push({
+ x: random(25, canvas.width - 25 - platformWidth),
+ y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace))
+ });
+ } else {
+ platforms.push({
+ x: random(25, canvas.width - 25 - platformWidth),
+ y: platforms[platforms.length - 1].y - (platformHeight + random(minPlatformSpace, maxPlatformSpace)),
+ word: randomWord() // random word
+ });
+ }
+
+ // add a bit to the min/max platform space as the player goes up
+ minPlatformSpace += 0.5;
+ maxPlatformSpace += 0.5;
+
+ // cap max space
+ maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 2);
+ }
+ }
+ else {
+ doodle.y += doodle.dy;
+ }
+
+ // only apply drag to horizontal movement if key is not pressed
+ if (!keydown) {
+ if (playerDir < 0) {
+ doodle.dx += drag;
+
+ // don't let dx go above 0
+ if (doodle.dx > 0) {
+ doodle.dx = 0;
+ playerDir = 0;
+ }
+ }
+ else if (playerDir > 0) {
+ doodle.dx -= drag;
+
+ if (doodle.dx < 0) {
+ doodle.dx = 0;
+ playerDir = 0;
+ }
+ }
+ }
+
+ doodle.x += doodle.dx;
+
+ // apply acceleration if moving left or right
+ if (keydown) {
+ if (playerDir < 0) {
+ doodle.dx -= acceleration;
+ } else if (playerDir > 0) {
+ doodle.dx += acceleration;
+ }
+ }
+
+ // make doodle wrap the screen
+ if (doodle.x + doodle.width < 0) {
+ doodle.x = canvas.width;
+ }
+ else if (doodle.x > canvas.width) {
+ doodle.x = -doodle.width;
+ }
+
+ // draw platforms or words
+ platforms.forEach(function(item) {
+ if (item.word) {
+    // Отрисовываем слова с помощью fillText
+    context.font = 'Bold 32px Roboto'; // Изменяем шрифт на жирный и увеличиваем размер
+    context.fillStyle = 'black'; // Изменяем цвет слова
+    context.fillText(item.word, item.x, item.y);
+ } else {
+ context.fillStyle = 'green'; // Цвет платформы
+ context.fillRect(item.x, item.y, platformWidth, platformHeight);
+ }
+ });
+
+ // make doodle jump if it collides with a platform or word from above
+ platforms.forEach(function(item) {
+ if (
+ // doodle is falling
+ doodle.dy > 0 &&
+
+ // doodle was previous above the platform or word
+ prevDoodleY + doodle.height <= item.y + platformHeight &&
+
+ // doodle collides with platform or word
+ // (Axis Aligned Bounding Box [AABB] collision check)
+ doodle.x < item.x + platformWidth &&
+ doodle.x + doodle.width > item.x &&
+ doodle.y < item.y + platformHeight &&
+ doodle.y + doodle.height > item.y
+ ) {
+ // reset doodle position so it's on top of the platform or word
+ doodle.y = item.y - doodle.height;
+ doodle.dy = bounceVelocity;
+
+ // Activate special effect if the word has one
+ if (item.effect) {
+ activateEffect(item.effect);
+ }
+ }
+ });
+
+ // check if doodle falls off the screen
+ if (doodle.y > canvas.height) {
+    // clear canvas
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    // display game over message
+    const gameOver = document.getElementById('gameOver');
+    gameOver.style.display = 'block';
+ }
+
+ // draw doodle
+ context.fillStyle = 'red'; // Change doodle color to red
+ context.fillRect(doodle.x, doodle.y, doodle.width, doodle.height);
+
+ prevDoodleY = doodle.y;
+
+ // remove any platforms that have gone offscreen
+ platforms = platforms.filter(function(item) {
+ return item.y < canvas.height;
+ })
+}
+
+// listen to keyboard events to move doodle
+document.addEventListener('keydown', function(e) {
+ // left arrow key
+ if (e.which === 37) {
+ keydown = true;
+ playerDir = -1;
+ doodle.dx = -7;
+
+ }
+ // right arrow key
+ else if (e.which === 39) {
+ keydown = true;
+ playerDir = 1;
+ doodle.dx = 7;
+ }
+});
+
+document.addEventListener('keyup', function(e) {
+ keydown = false;
+});
+
+// Function to activate special effects
+function activateEffect(effect) {
+ if (effect === 'speedUp') {
+ doodle.dy = -20; // Increase jump velocity
+ setTimeout(() => {
+ doodle.dy = bounceVelocity; // Reset jump velocity after a delay
+ }, 1000); // 1 second delay
+ }
+ // Add more effects here
+}
+
+// Function to restart the game
+function restartGame() {
+    location.reload(); // Reload the page to restart the game
+}
+
+// start the game
+requestAnimationFrame(loop);
+
+// Touch events for mobile devices
+canvas.addEventListener('touchstart', function(e) {
+    // Get touch coordinates
+    const touchX = e.touches[0].clientX;
+    // Determine direction to move doodle
+    if (touchX < canvas.width / 2) {
+        playerDir = -1;
+        doodle.dx = -3;
+    } else {
+        playerDir = 1;
+        doodle.dx = 3;
+    }
+});
+
+canvas.addEventListener('touchend', function(e) {
+    // Stop movement when touch is released
+    playerDir = 0;
+    doodle.dx = 0;
+});
+</script>
+</body>
+</html>
