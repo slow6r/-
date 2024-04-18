@@ -328,24 +328,32 @@ function restartGame() {
 requestAnimationFrame(loop);
 
 // Touch events for mobile devices
+let touching = false; // флаг, показывающий, касается ли пользователь экрана
+let touchX = 0; // сохраняем x-координату при касании экрана
+
 canvas.addEventListener('touchstart', function(e) {
-    // Get touch coordinates
-    const touchX = e.touches[0].clientX;
-    // Determine direction to move doodle
-    if (touchX < canvas.width / 2) {
-        playerDir = -1;
-        doodle.dx = -3;
-    } else {
-        playerDir = 1;
-        doodle.dx = 3;
-    }
+    touching = true; // пользователь начал касание экрана
+    touchX = e.touches[0].clientX; // сохраняем x-координату начала касания
 });
 
 canvas.addEventListener('touchend', function(e) {
-    // Stop movement when touch is released
-    playerDir = 0;
-    doodle.dx = 0;
+    touching = false; // пользователь перестал касаться экрана
+    playerDir = 0; // остановить движение героя
 });
+
+canvas.addEventListener('touchmove', function(e) {
+    if (touching) { // если пользователь удерживает палец на экране
+        const currentTouchX = e.touches[0].clientX; // текущая x-координата при касании
+        if (currentTouchX < touchX) { // если пользователь двигает палец влево
+            playerDir = -1; // установить направление движения влево
+            doodle.dx = -3; // установить скорость движения влево
+        } else { // если пользователь двигает палец вправо
+            playerDir = 1; // установить направление движения вправо
+            doodle.dx = 3; // установить скорость движения вправо
+        }
+    }
+});
+
 </script>
 </body>
 </html>
